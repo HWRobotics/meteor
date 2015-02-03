@@ -80,8 +80,8 @@ sourcemap_support.install({
 });
 
 // Only enabled by default in development.
-if (process.env.ENABLE_METEOR_SHELL) {
-  require('./shell.js').listen();
+if (process.env.METEOR_SHELL_DIR) {
+  require('./shell.js').listen(process.env.METEOR_SHELL_DIR);
 }
 
 // As a replacement to the old keepalives mechanism, check for a running
@@ -129,12 +129,17 @@ Fiber(function () {
           return require(name);
         }
 
-        var nodeModuleDir =
-          path.resolve(serverDir, fileInfo.node_modules, name);
+        var nodeModuleBase = path.resolve(serverDir, fileInfo.node_modules);
 
-        if (fs.existsSync(nodeModuleDir)) {
+        var nodeModuleDir = path.resolve(nodeModuleBase, name);
+
+        // If the user does `Npm.require('foo/bar')`, then we should resolve to
+        // the package's node modules if `foo` was one of the modules we
+        // installed.  (`foo/bar` might be implemented as `foo/bar.js` so we
+        // can't just naively see if all of nodeModuleDir exists.
+        if (fs.existsSync(path.resolve(nodeModuleBase, name.split("/")[0]))) {
           return require(nodeModuleDir);
-          }
+        }
         try {
           return require(name);
         } catch (e) {

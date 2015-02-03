@@ -94,8 +94,8 @@ var mapWhereToArch = function (where) {
 
 var splitConstraint = function (c) {
   // XXX print error better (w/ buildmessage?)?
-  var parsed = utils.parseConstraint(c);
-  return { package: parsed.name,
+  var parsed = utils.parsePackageConstraint(c);
+  return { package: parsed.package,
            constraint: parsed.constraintString || null };
 };
 
@@ -808,21 +808,16 @@ _.extend(PackageSource.prototype, {
       },
 
       require: function (name) {
-        var nodeModuleDir = files.pathJoin(self.sourceRoot,
-                                      '.npm', 'package', 'node_modules', name);
-        if (files.exists(nodeModuleDir)) {
-          return require(nodeModuleDir);
-        } else {
-          try {
-            return require(name); // from the dev bundle
-          } catch (e) {
-            buildmessage.error("can't find npm module '" + name +
-                               "'. Did you forget to call 'Npm.depends'?",
-                               { useMyCaller: true });
-            // recover by, uh, returning undefined, which is likely to
-            // have some knock-on effects
-            return undefined;
-          }
+        try {
+          return require(name); // from the dev bundle
+        } catch (e) {
+          buildmessage.error(
+            "can't find npm module '" + name +
+              "'. In package.js, Npm.require can only find built-in modules.",
+            { useMyCaller: true });
+          // recover by, uh, returning undefined, which is likely to
+          // have some knock-on effects
+          return undefined;
         }
       }
     };
@@ -1131,7 +1126,7 @@ _.extend(PackageSource.prototype, {
           for (var i = 0; i < names.length; ++i) {
             var name = names[i];
             try {
-              var parsed = utils.parseConstraint(name);
+              var parsed = utils.parsePackageConstraint(name);
             } catch (e) {
               if (!e.versionParserError)
                 throw e;
@@ -1142,7 +1137,7 @@ _.extend(PackageSource.prototype, {
 
             forAllMatchingArchs(arch, function (a) {
               uses[a].push({
-                package: parsed.name,
+                package: parsed.package,
                 constraint: parsed.constraintString,
                 unordered: options.unordered || false,
                 weak: options.weak || false
@@ -1181,7 +1176,7 @@ _.extend(PackageSource.prototype, {
           for (var i = 0; i < names.length; ++i) {
             var name = names[i];
             try {
-              var parsed = utils.parseConstraint(name);
+              var parsed = utils.parsePackageConstraint(name);
             } catch (e) {
               if (!e.versionParserError)
                 throw e;
@@ -1194,7 +1189,7 @@ _.extend(PackageSource.prototype, {
               // We don't allow weak or unordered implies, since the main
               // purpose of imply is to provide imports and plugins.
               implies[a].push({
-                package: parsed.name,
+                package: parsed.package,
                 constraint: parsed.constraintString
               });
             });
@@ -1504,7 +1499,7 @@ _.extend(PackageSource.prototype, {
     // because there's no way to specify otherwise in .meteor/packages.
     var uses = [];
     projectContext.projectConstraintsFile.eachConstraint(function (constraint) {
-      uses.push({ package: constraint.name,
+      uses.push({ package: constraint.package,
                   constraint: constraint.constraintString });
     });
 
